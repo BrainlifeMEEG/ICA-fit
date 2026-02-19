@@ -152,7 +152,7 @@ report.save(os.path.join('out_report', 'report_ica.html'), overwrite=True)
 create_product_json()
 add_raw_info_to_product(raw)
 add_image_to_product(components_fig_path, 'ICA Components')
-add_info_to_product(f'ICA fitted with {ica.n_components} components, {len(ica.exclude)} excluded', 'success')
+add_info_to_product(f'ICA fitted with {ica.n_components} components, {len(ica.exclude)} excluded', msg_type='success')
 
 
 
