@@ -55,6 +55,7 @@ ensure_output_dirs('out_dir', 'out_figs', 'out_report')
 
 # Load configuration
 config = load_config()
+product_items = []
 
 # == LOAD DATA ==
 fname = config['mne']
@@ -63,7 +64,7 @@ raw = mne.io.read_raw_fif(fname, preload=True)
 # == OPTIONAL FILTERING ==
 if config.get('l_freq') is not None and config.get('h_freq') is not None:
     raw.filter(l_freq=config['l_freq'], h_freq=config['h_freq'])
-    add_info_to_product(f'Applied bandpass filter: {config["l_freq"]}-{config["h_freq"]} Hz')
+    add_info_to_product(product_items, f'Applied bandpass filter: {config["l_freq"]}-{config["h_freq"]} Hz')
 
 # == SET UP ICA ==
 ica_params = {
@@ -93,7 +94,7 @@ explained_var_ratio = ica.get_explained_variance_ratio(raw)
 for channel_type, ratio in explained_var_ratio.items():
     msg = f'Fraction of {channel_type} variance explained by all components: {ratio:.4f}'
     print(msg)
-    add_info_to_product(msg)
+    add_info_to_product(product_items, msg)
 
 # == SAVE ICA ==
 ica.save(os.path.join('out_dir', 'ica.fif'), overwrite=True)
@@ -124,18 +125,18 @@ if config.get('eog_ch') and config['eog_ch'] != 'None':
         eog_evoked = create_eog_epochs(raw, ch_name=config['eog_ch'], verbose=False).average()
         eog_indices, eog_scores = ica.find_bads_eog(raw, ch_name=config['eog_ch'])
         print(f'Found {len(eog_indices)} EOG artifact components')
-        add_info_to_product(f'Found {len(eog_indices)} EOG artifact components: {eog_indices}')
+        add_info_to_product(product_items, f'Found {len(eog_indices)} EOG artifact components: {eog_indices}')
     except Exception as e:
-        add_info_to_product(f'Could not detect EOG artifacts: {str(e)}', 'warning')
+        add_info_to_product(product_items, f'Could not detect EOG artifacts: {str(e)}', 'warning')
 
 if config.get('ecg_ch') and config['ecg_ch'] != 'None':
     try:
         ecg_evoked = create_ecg_epochs(raw, ch_name=config['ecg_ch'], verbose=False).average()
         ecg_indices, ecg_scores = ica.find_bads_ecg(raw, ch_name=config['ecg_ch'])
         print(f'Found {len(ecg_indices)} ECG artifact components')
-        add_info_to_product(f'Found {len(ecg_indices)} ECG artifact components: {ecg_indices}')
+        add_info_to_product(product_items, f'Found {len(ecg_indices)} ECG artifact components: {ecg_indices}')
     except Exception as e:
-        add_info_to_product(f'Could not detect ECG artifacts: {str(e)}', 'warning')
+        add_info_to_product(product_items, f'Could not detect ECG artifacts: {str(e)}', 'warning')
 
 # Combine detected artifacts
 ica.exclude = list(set(eog_indices + ecg_indices))
@@ -149,10 +150,10 @@ report.add_ica(ica, 'ICA Decomposition', inst=raw,
 report.save(os.path.join('out_report', 'report_ica.html'), overwrite=True)
 
 # == CREATE PRODUCT.JSON ==
-create_product_json()
-add_raw_info_to_product(raw)
-add_image_to_product(components_fig_path, 'ICA Components')
-add_info_to_product(f'ICA fitted with {ica.n_components} components, {len(ica.exclude)} excluded', msg_type='success')
+add_raw_info_to_product(product_items, raw)
+add_image_to_product(product_items, components_fig_path, 'ICA Components')
+add_info_to_product(product_items, f'ICA fitted with {ica.n_components} components, {len(ica.exclude)} excluded', msg_type='success')
+create_product_json(product_items)
 
 
 
