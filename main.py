@@ -22,9 +22,13 @@ Outputs:
     - product.json: Metadata about ICA decomposition
 """
 
-# Copyright (c) 2020 brainlife.io
+# Copyright (c) 2026 brainlife.io
 #
 # This app computes ICA decomposition on MNE raw data
+#
+# Authors:
+# - Saeed Zahran
+# - Maximilien Chaumon (https://github.com/dnacombo)
 
 import sys
 import os
