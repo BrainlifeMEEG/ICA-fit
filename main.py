@@ -18,7 +18,7 @@ Outputs:
     - out_dir/ica.fif: ICA decomposition object
     - out_figs/components_topo.png: Topographic plot of ICA components
     - out_figs/component_*.png: Detailed properties for selected components
-    - out_report/report_ica.html: QC report with component analysis
+    - out_report/report.html: QC report with component analysis
     - product.json: Metadata about ICA decomposition
 """
 
@@ -48,7 +48,8 @@ from brainlife_utils import (
     add_info_to_product,
     add_raw_info_to_product,
     add_image_to_product,
-    save_figure_with_base64
+    save_figure_with_base64,
+    require_config_keys
 )
 
 # Set up matplotlib for headless execution
@@ -59,6 +60,7 @@ ensure_output_dirs('out_dir', 'out_figs', 'out_report')
 
 # Load configuration
 config = load_config()
+require_config_keys(config, ['mne'])
 product_items = []
 
 # == LOAD DATA ==
@@ -151,7 +153,7 @@ report = mne.Report(title='ICA Fitting Report')
 report.add_ica(ica, 'ICA Decomposition', inst=raw, 
                eog_evoked=eog_evoked, ecg_evoked=ecg_evoked,
                ecg_scores=ecg_indices, eog_scores=eog_indices)
-report.save(os.path.join('out_report', 'report_ica.html'), overwrite=True)
+report.save(os.path.join('out_report', 'report.html'), overwrite=True)
 
 # == CREATE PRODUCT.JSON ==
 add_raw_info_to_product(product_items, raw)

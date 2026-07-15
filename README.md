@@ -16,7 +16,7 @@ This Brainlife.io app computes an Independent Component Analysis (ICA) decomposi
 - **out_dir/ica.fif**: ICA decomposition object
 - **out_figs/components_topo.png**: Topographic plot of ICA components
 - **out_figs/component_*.png**: Detailed properties for individual components
-- **out_report/report_ica.html**: Quality control report with component analysis, EOG/ECG correlations
+- **out_report/report.html**: Quality control report with component analysis, EOG/ECG correlations
 - **product.json**: Metadata about ICA decomposition
 
 ## Configuration Parameters
