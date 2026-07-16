@@ -14,16 +14,3 @@ mkdir -p out_figs
 
 
 singularity exec docker://brainlife/mne:1.2.1 python3 main.py
-
-
-cat << EOF > product.json
-{
-    "brainlife": [
-        {
-         "type": "image/png",
-	       "name": "Ica sources",
-         "base64": "$(base64 -w 0 out_figs/components_topo.png)"
-       }       
-]
-}
-EOF
