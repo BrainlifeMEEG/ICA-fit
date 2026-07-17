@@ -153,7 +153,7 @@ report = mne.Report(title='ICA Fitting Report')
 report.add_ica(ica, 'ICA Decomposition', inst=raw, 
                eog_evoked=eog_evoked, ecg_evoked=ecg_evoked,
                ecg_scores=ecg_indices, eog_scores=eog_indices)
-report.save(os.path.join('out_report', 'report.html'), overwrite=True)
+report.save(os.path.join('out_report', 'report.html'), overwrite=True, verbose=False)
 
 # == CREATE PRODUCT.JSON ==
 add_raw_info_to_product(product_items, raw)
