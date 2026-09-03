@@ -73,8 +73,19 @@ if config.get('l_freq') is not None and config.get('h_freq') is not None:
     add_info_to_product(product_items, f'Applied bandpass filter: {config["l_freq"]}-{config["h_freq"]} Hz')
 
 # == SET UP ICA ==
+n_components = config.get('n_components', 20)
+# n_components is legitimately a float in MNE's own API (a fraction of
+# explained variance to keep, e.g. 0.999 -- the Wakeman & Henson value),
+# not just a component count. Forcing int() truncated any such fraction to
+# 0 (int(0.999) == 0), which then made ICA.fit() select zero components and
+# crash with "Found array with 0 feature(s)" -- only cast to int when the
+# value is actually a whole-number count.
+if isinstance(n_components, str):
+    n_components = float(n_components)
+if isinstance(n_components, float) and n_components.is_integer() and n_components > 1:
+    n_components = int(n_components)
 ica_params = {
-    'n_components': int(config.get('n_components', 20)),
+    'n_components': n_components,
     'random_state': config.get('random_state', 42),
     'method': config.get('method', 'fastica'),
 }
