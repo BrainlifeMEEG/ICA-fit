@@ -10,6 +10,8 @@ Inputs:
     - n_components: Number of ICA components to estimate
     - method: ICA method ('fastica', 'picard', 'infomax', etc.)
     - l_freq/h_freq: Optional bandpass filtering parameters
+    - decim: Optional decimation factor for fitting speed only (every Nth
+      sample used to fit; saved/plotted data is unaffected)
     - picks_to_plot: Number of components to show detailed plots for
     - eog_ch: EOG channel name/index for artifact detection
     - ecg_ch: ECG channel name/index for artifact detection
@@ -113,10 +115,17 @@ ica = ICA(**ica_params, verbose='DEBUG')
 # combined with `main`'s python3 -u (unbuffered stdout, fixed alongside
 # this), every print below now actually reaches the live slurm log instead
 # of sitting in a buffer until the process exits.
+# decim: fit on every Nth sample only (ica.fit's own decim kwarg -- affects
+# fitting speed only, the saved ICA/raw data elsewhere are untouched). None
+# (the default, no key or config['decim'] is None) means no decimation.
+decim = config.get('decim')
+if decim is not None:
+    decim = int(decim)
 print(f'[{datetime.datetime.now().isoformat()}] Starting ICA fit '
-      f'({ica_params["method"]}, n_components={ica_params["n_components"]}) '
-      f'on {len(raw.ch_names)} channels, {raw.n_times} samples...', flush=True)
-ica.fit(raw)
+      f'({ica_params["method"]}, n_components={ica_params["n_components"]}, '
+      f'decim={decim}) on {len(raw.ch_names)} channels, {raw.n_times} samples...',
+      flush=True)
+ica.fit(raw, decim=decim)
 print(f'[{datetime.datetime.now().isoformat()}] ICA fit done, '
       f'{ica.n_components_} components', flush=True)
 
