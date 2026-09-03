@@ -104,7 +104,7 @@ ica = ICA(**ica_params)
 
 # == FIT ICA ==
 ica.fit(raw)
-print(f'ICA fitted with {ica.n_components} components')
+print(f'ICA fitted with {ica.n_components_} components')
 
 # == PRINT EXPLAINED VARIANCE ==
 explained_var_ratio = ica.get_explained_variance_ratio(raw)
@@ -124,8 +124,22 @@ plt.savefig(components_fig_path, dpi=150)
 plt.close()
 
 # == PLOT DETAILED COMPONENT PROPERTIES ==
-picks_to_plot = config.get('picks_to_plot', 5)
-fs = ica.plot_properties(raw, picks=list(range(min(picks_to_plot, ica.n_components))), show=False)
+# picks_to_plot's declared app default is "" (an empty-string config field,
+# same as everywhere else in this repo), which load_config() converts to
+# None -- config.get('picks_to_plot', 5) does NOT catch that, since the key
+# is present (just None-valued), not absent, so .get()'s own default never
+# kicks in. Docstring says "None will pick the first 5 components", so
+# handle that explicitly instead of relying on .get()'s fallback.
+picks_to_plot = config.get('picks_to_plot')
+if picks_to_plot is None:
+    picks_to_plot = 5
+# ica.n_components is the ORIGINAL fit parameter (still 0.999 here, a float
+# fraction of variance -- confirmed via the app's own log line above), not
+# the actual number of components found. list(range(...)) needs an int, and
+# min(int, 0.999) always silently picks the float anyway (0.999 < 5) even
+# when it's not: use ica.n_components_ (trailing underscore -- the real
+# fitted count, e.g. 223) instead.
+fs = ica.plot_properties(raw, picks=list(range(min(picks_to_plot, ica.n_components_))), show=False)
 for i, f in enumerate(fs):
     comp_fig_path = os.path.join('out_figs', f'component_{i:02d}.png')
     f.savefig(comp_fig_path, dpi=150)
