@@ -32,6 +32,7 @@ Outputs:
 
 import sys
 import os
+import datetime
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'brainlife_utils'))
 
 # Standard imports
@@ -100,11 +101,24 @@ if config.get('max_iter') is not None:
 if config.get('allow_ref_meg') is not None:
     ica_params['allow_ref_meg'] = config['allow_ref_meg']
 
-ica = ICA(**ica_params)
+ica = ICA(**ica_params, verbose='DEBUG')
 
 # == FIT ICA ==
+# sklearn's FastICA has no per-iteration progress hook at all (an opaque
+# blocking call), so this can legitimately show no new output for a long
+# time even while genuinely computing -- that ambiguity is exactly what
+# made a real, slow-but-correct fit look indistinguishable from a hang on
+# the ICM cluster. verbose='DEBUG' surfaces whatever sub-step logging MNE
+# itself does have (PCA/whitening setup before the opaque fastica call);
+# combined with `main`'s python3 -u (unbuffered stdout, fixed alongside
+# this), every print below now actually reaches the live slurm log instead
+# of sitting in a buffer until the process exits.
+print(f'[{datetime.datetime.now().isoformat()}] Starting ICA fit '
+      f'({ica_params["method"]}, n_components={ica_params["n_components"]}) '
+      f'on {len(raw.ch_names)} channels, {raw.n_times} samples...', flush=True)
 ica.fit(raw)
-print(f'ICA fitted with {ica.n_components_} components')
+print(f'[{datetime.datetime.now().isoformat()}] ICA fit done, '
+      f'{ica.n_components_} components', flush=True)
 
 # == PRINT EXPLAINED VARIANCE ==
 explained_var_ratio = ica.get_explained_variance_ratio(raw)
