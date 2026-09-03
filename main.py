@@ -146,10 +146,16 @@ for i, f in enumerate(fs):
     plt.close(f)
 
 # == DETECT EOG/ECG ARTIFACTS ==
+# NOTE: component exclusion is deliberately NOT this app's job -- that's
+# done downstream by ICA-apply. eog_ch/ecg_ch are only set here if a caller
+# explicitly wants a preview scored in *this* app's own report; leaving
+# them unset (the normal case in this pipeline) is expected, not an error.
 eog_evoked = None
 ecg_evoked = None
 eog_indices = []
 ecg_indices = []
+eog_scores = None
+ecg_scores = None
 
 if config.get('eog_ch') and config['eog_ch'] != 'None':
     try:
@@ -175,9 +181,16 @@ print(f'Total excluded components: {len(ica.exclude)}')
 
 # == CREATE REPORT ==
 report = mne.Report(title='ICA Fitting Report')
-report.add_ica(ica, 'ICA Decomposition', inst=raw, 
+# Pass the real score arrays (find_bads_eog/ecg's 2nd return value), not
+# the index lists -- report.add_ica's ecg_scores/eog_scores parameters are
+# score arrays, not indices. Also pass None (not an empty list) when
+# nothing was detected/scored: MNE's plot_ica_scores does `scores[0]`
+# unconditionally, which IndexErrors on []. Confirmed on the ICM cluster:
+# the previous ecg_scores=ecg_indices/eog_scores=eog_indices with both
+# unset (this pipeline's normal case) crashed exactly that way.
+report.add_ica(ica, 'ICA Decomposition', inst=raw,
                eog_evoked=eog_evoked, ecg_evoked=ecg_evoked,
-               ecg_scores=ecg_indices, eog_scores=eog_indices)
+               ecg_scores=ecg_scores, eog_scores=eog_scores)
 report.save(os.path.join('out_report', 'report.html'), overwrite=True, verbose=False)
 
 # == CREATE PRODUCT.JSON ==
