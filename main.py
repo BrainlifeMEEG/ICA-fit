@@ -103,15 +103,18 @@ if config.get('max_iter') is not None:
 if config.get('allow_ref_meg') is not None:
     ica_params['allow_ref_meg'] = config['allow_ref_meg']
 
-ica = ICA(**ica_params, verbose='DEBUG')
+ica = ICA(**ica_params, verbose='INFO')
 
 # == FIT ICA ==
 # sklearn's FastICA has no per-iteration progress hook at all (an opaque
 # blocking call), so this can legitimately show no new output for a long
 # time even while genuinely computing -- that ambiguity is exactly what
 # made a real, slow-but-correct fit look indistinguishable from a hang on
-# the ICM cluster. verbose='DEBUG' surfaces whatever sub-step logging MNE
-# itself does have (PCA/whitening setup before the opaque fastica call);
+# the ICM cluster. verbose='INFO' (not 'DEBUG': that leaked into other
+# calls below, e.g. report.save()'s own verbose=False stopped suppressing
+# the HTML-asset "Embedding: ..." lines once this was 'DEBUG' -- MNE's
+# logging isn't fully scoped to one object) keeps the two useful sub-step
+# messages ("please be patient" / "Selecting by explained variance");
 # combined with `main`'s python3 -u (unbuffered stdout, fixed alongside
 # this), every print below now actually reaches the live slurm log instead
 # of sitting in a buffer until the process exits.
@@ -203,7 +206,11 @@ ica.exclude = list(set(eog_indices + ecg_indices))
 print(f'Total excluded components: {len(ica.exclude)}')
 
 # == CREATE REPORT ==
-report = mne.Report(title='ICA Fitting Report')
+# verbose=False on every call here (matching epoch/main.py's convention) --
+# report-building is chatty (per-embedded-asset "Embedding: jquery...js"
+# lines, etc.) and unrelated to the fit progress messages above, which
+# stay at 'INFO' on purpose.
+report = mne.Report(title='ICA Fitting Report', verbose=False)
 # Pass the real score arrays (find_bads_eog/ecg's 2nd return value), not
 # the index lists -- report.add_ica's ecg_scores/eog_scores parameters are
 # score arrays, not indices. Also pass None (not an empty list) when
@@ -213,7 +220,7 @@ report = mne.Report(title='ICA Fitting Report')
 # unset (this pipeline's normal case) crashed exactly that way.
 report.add_ica(ica, 'ICA Decomposition', inst=raw,
                eog_evoked=eog_evoked, ecg_evoked=ecg_evoked,
-               ecg_scores=ecg_scores, eog_scores=eog_scores)
+               ecg_scores=ecg_scores, eog_scores=eog_scores, verbose=False)
 report.save(os.path.join('out_report', 'report.html'), overwrite=True, verbose=False)
 
 # == CREATE PRODUCT.JSON ==
