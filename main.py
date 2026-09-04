@@ -225,7 +225,7 @@ report.save(os.path.join('out_report', 'report.html'), overwrite=True, verbose=F
 
 # == CREATE PRODUCT.JSON ==
 add_raw_info_to_product(product_items, raw)
-add_image_to_product(product_items, components_fig_path, 'ICA Components')
+add_image_to_product(product_items, 'ICA Components', filepath=components_fig_path)
 add_info_to_product(product_items, f'ICA fitted with {ica.n_components} components, {len(ica.exclude)} excluded', msg_type='success')
 create_product_json(product_items)
 
