@@ -165,7 +165,8 @@ if picks_to_plot is None:
 # min(int, 0.999) always silently picks the float anyway (0.999 < 5) even
 # when it's not: use ica.n_components_ (trailing underscore -- the real
 # fitted count, e.g. 223) instead.
-fs = ica.plot_properties(raw, picks=list(range(min(picks_to_plot, ica.n_components_))), show=False)
+plot_picks = list(range(min(picks_to_plot, ica.n_components_)))
+fs = ica.plot_properties(raw, picks=plot_picks, show=False)
 for i, f in enumerate(fs):
     comp_fig_path = os.path.join('out_figs', f'component_{i:02d}.png')
     f.savefig(comp_fig_path, dpi=150)
@@ -218,7 +219,16 @@ report = mne.Report(title='ICA Fitting Report', verbose=False)
 # unconditionally, which IndexErrors on []. Confirmed on the ICM cluster:
 # the previous ecg_scores=ecg_indices/eog_scores=eog_indices with both
 # unset (this pipeline's normal case) crashed exactly that way.
-report.add_ica(ica, 'ICA Decomposition', inst=raw,
+# picks=plot_picks (NOT the default None) -- confirmed on the ICM cluster
+# to matter, not just tidiness: report.add_ica's own default is "plot every
+# component", each one a full property plot (topography+PSD+ERP-image+time
+# course) computed against the entire `inst=raw`. With n_components=0.999
+# selecting 118 components on a 6-run-concatenated ~49min recording, that
+# unbounded default is what OOM-killed a 32GB Slurm job -- the fit itself
+# (same raw, same 118 components) only used ~21-23GB. Reuse the same
+# picks_to_plot-derived bound already used for plot_properties above, so
+# the report never renders more components than that app-configurable cap.
+report.add_ica(ica, 'ICA Decomposition', inst=raw, picks=plot_picks,
                eog_evoked=eog_evoked, ecg_evoked=ecg_evoked,
                ecg_scores=ecg_scores, eog_scores=eog_scores, verbose=False)
 report.save(os.path.join('out_report', 'report.html'), overwrite=True, verbose=False)
