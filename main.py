@@ -263,9 +263,15 @@ report = mne.Report(title='ICA Fitting Report', verbose=False)
 # call already made above. The already-rendered `fs` figures are embedded
 # directly instead, so the report doesn't lose that content, just the
 # redundant recompute and the unbounded overlay.
+# NOTE: no verbose= here -- unlike report.save()/mne.Report(), add_ica()
+# has no verbose parameter at all in this MNE version (confirmed both
+# locally and via a real cluster traceback: `verbose=False` had been on
+# this call since before this OOM investigation started, masked the whole
+# time because the process never reached this line until the
+# get_explained_variance_ratio() fix above let it get this far).
 report.add_ica(ica, 'ICA Decomposition', inst=None,
                eog_evoked=eog_evoked, ecg_evoked=ecg_evoked,
-               ecg_scores=ecg_scores, eog_scores=eog_scores, verbose=False)
+               ecg_scores=ecg_scores, eog_scores=eog_scores)
 if fs:
     report.add_figure(fig=fs, title='ICA component properties',
                        caption=component_captions, section='ICA Decomposition')
