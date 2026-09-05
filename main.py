@@ -167,10 +167,14 @@ if picks_to_plot is None:
 # fitted count, e.g. 223) instead.
 plot_picks = list(range(min(picks_to_plot, ica.n_components_)))
 fs = ica.plot_properties(raw, picks=plot_picks, show=False)
+# fs stays open (not plt.close()'d here) -- embedded into the report below,
+# reusing this same render instead of having report.add_ica() recompute it
+# a second time. Closed once that's done.
+component_captions = []
 for i, f in enumerate(fs):
     comp_fig_path = os.path.join('out_figs', f'component_{i:02d}.png')
     f.savefig(comp_fig_path, dpi=150)
-    plt.close(f)
+    component_captions.append(f'ICA component {plot_picks[i]}')
 
 # == DETECT EOG/ECG ARTIFACTS ==
 # NOTE: component exclusion is deliberately NOT this app's job -- that's
@@ -219,18 +223,31 @@ report = mne.Report(title='ICA Fitting Report', verbose=False)
 # unconditionally, which IndexErrors on []. Confirmed on the ICM cluster:
 # the previous ecg_scores=ecg_indices/eog_scores=eog_indices with both
 # unset (this pipeline's normal case) crashed exactly that way.
-# picks=plot_picks (NOT the default None) -- confirmed on the ICM cluster
-# to matter, not just tidiness: report.add_ica's own default is "plot every
-# component", each one a full property plot (topography+PSD+ERP-image+time
-# course) computed against the entire `inst=raw`. With n_components=0.999
-# selecting 118 components on a 6-run-concatenated ~49min recording, that
-# unbounded default is what OOM-killed a 32GB Slurm job -- the fit itself
-# (same raw, same 118 components) only used ~21-23GB. Reuse the same
-# picks_to_plot-derived bound already used for plot_properties above, so
-# the report never renders more components than that app-configurable cap.
-report.add_ica(ica, 'ICA Decomposition', inst=raw, picks=plot_picks,
+# inst=None here (NOT raw) -- bounding picks alone (first attempt, commit
+# d841371) did NOT fix the real OOM: confirmed on the ICM cluster, a
+# second crash with picks already limited to plot_picks died at the exact
+# same point with the exact same RSS trajectory. Root cause is
+# report.add_ica's OTHER inst-driven step, unconditional whenever inst is
+# not None regardless of picks: it calls ica.plot_overlay(inst=raw, ...),
+# which (per MNE's own plot_ica_overlay source) does
+# `ica.apply(inst.copy(), ..., start=0, stop=3)` -- .copy() duplicates the
+# ENTIRE preloaded raw array (a second ~10GB+ copy stacked on the ~20GB
+# already resident from loading+filtering+fitting) just to plot 3 seconds
+# of before/after signal. inst=None skips this overlay entirely, and per
+# report.add_ica's own docstring ("To only plot the ICA component
+# topographies, explicitly pass None") also skips its properties
+# recomputation -- which would otherwise redo the exact plot_properties()
+# call already made above. The already-rendered `fs` figures are embedded
+# directly instead, so the report doesn't lose that content, just the
+# redundant recompute and the unbounded overlay.
+report.add_ica(ica, 'ICA Decomposition', inst=None,
                eog_evoked=eog_evoked, ecg_evoked=ecg_evoked,
                ecg_scores=ecg_scores, eog_scores=eog_scores, verbose=False)
+if fs:
+    report.add_figure(fig=fs, title='ICA component properties',
+                       caption=component_captions, section='ICA Decomposition')
+for f in fs:
+    plt.close(f)
 report.save(os.path.join('out_report', 'report.html'), overwrite=True, verbose=False)
 
 # == CREATE PRODUCT.JSON ==
