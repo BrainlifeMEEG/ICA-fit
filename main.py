@@ -166,11 +166,29 @@ for channel_type, ratio in explained_var_ratio.items():
 ica.save(os.path.join('out_dir', 'ica.fif'), overwrite=True)
 
 # == PLOT COMPONENTS TOPOGRAPHY ==
-plt.figure(figsize=(15, 8))
-ica.plot_components(show=False)
+# picks= an explicit range, NOT the previous no-picks call: ica.plot_components()
+# batches components into groups of 20 per figure whenever there are more
+# than 20 (118 here -> 6 figures: 0-19, 20-39, ..., 100-117), and since its
+# own default is axes=None it always creates a fresh figure of its own --
+# the plt.figure() previously called here never fed it, so it was dead
+# code, and plt.savefig() below was silently saving whichever figure was
+# left "current" afterward: the LAST one (components 100-117), not the
+# first as intended. Limiting picks to the first 20 fixes both problems in
+# one go (exactly one figure, matching MNE's own per-figure batch size)
+# and is what was actually wanted -- an at-a-glance overview, not every
+# component.
+topo_picks = list(range(min(20, ica.n_components_)))
+topo_fig = ica.plot_components(picks=topo_picks, show=False)
+if isinstance(topo_fig, list):
+    topo_fig = topo_fig[0]
 components_fig_path = os.path.join('out_figs', 'components_topo.png')
-plt.savefig(components_fig_path, dpi=150)
-plt.close()
+# save_figure_with_base64: full-res file (out_figs/, for real inspection)
+# + a much-lower-dpi thumbnail returned here for product.json below.
+# product.json has a hard 1MB cap -- hit for real (1.09MB) with this one
+# image alone at its previous full-150dpi/118-component size, before the
+# per-component properties thumbnails below were even being embedded at
+# all. dpi=30 leaves comfortable headroom for both together.
+topo_base64 = save_figure_with_base64(topo_fig, components_fig_path, dpi_file=150, dpi_base64=30)
 
 # == PLOT DETAILED COMPONENT PROPERTIES ==
 # picks_to_plot's declared app default is "" (an empty-string config field,
@@ -190,14 +208,23 @@ if picks_to_plot is None:
 # fitted count, e.g. 223) instead.
 plot_picks = list(range(min(picks_to_plot, ica.n_components_)))
 fs = ica.plot_properties(raw, picks=plot_picks, show=False)
-# fs stays open (not plt.close()'d here) -- embedded into the report below,
-# reusing this same render instead of having report.add_ica() recompute it
-# a second time. Closed once that's done.
+# fs stays open (close_fig=False below) -- embedded into the HTML report
+# further down, reusing this same render instead of having
+# report.add_ica() recompute it a second time. Closed once that's done.
+# Also collects a low-dpi base64 thumbnail per figure for product.json,
+# same dual-dpi convention as the topo plot above -- these weren't
+# embedded in product.json at all before (only saved to out_figs/), which
+# is why the "a screen sized copy of components_topo + a handful of
+# properties plots" request needs both, not just the one that already
+# happened to be embedded (at full res, which is what blew the 1MB cap).
 component_captions = []
+component_base64 = []
 for i, f in enumerate(fs):
     comp_fig_path = os.path.join('out_figs', f'component_{i:02d}.png')
-    f.savefig(comp_fig_path, dpi=150)
     component_captions.append(f'ICA component {plot_picks[i]}')
+    component_base64.append(
+        save_figure_with_base64(f, comp_fig_path, dpi_file=150, dpi_base64=30, close_fig=False)
+    )
 
 # == DETECT EOG/ECG ARTIFACTS ==
 # NOTE: component exclusion is deliberately NOT this app's job -- that's
@@ -281,7 +308,15 @@ report.save(os.path.join('out_report', 'report.html'), overwrite=True, verbose=F
 
 # == CREATE PRODUCT.JSON ==
 add_raw_info_to_product(product_items, raw)
-add_image_to_product(product_items, 'ICA Components', filepath=components_fig_path)
+# base64_data=... (not filepath=) for both -- filepath= embeds the FULL-res
+# file, which is exactly what pushed product.json over its 1MB cap before
+# (the topo image alone was 860KB at 150dpi/118 components, ~1.14MB once
+# base64-encoded, and that was the ONLY image being embedded). These reuse
+# the low-dpi thumbnails already computed above; the full-res files are
+# still written to out_figs/ for real inspection.
+add_image_to_product(product_items, 'ICA Components', base64_data=topo_base64)
+for i, b64 in enumerate(component_base64):
+    add_image_to_product(product_items, f'ICA component {plot_picks[i]} properties', base64_data=b64)
 add_info_to_product(product_items, f'ICA fitted with {ica.n_components} components, {len(ica.exclude)} excluded', msg_type='success')
 create_product_json(product_items)
 
