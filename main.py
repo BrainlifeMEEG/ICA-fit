@@ -133,7 +133,30 @@ print(f'[{datetime.datetime.now().isoformat()}] ICA fit done, '
       f'{ica.n_components_} components', flush=True)
 
 # == PRINT EXPLAINED VARIANCE ==
-explained_var_ratio = ica.get_explained_variance_ratio(raw)
+# The two earlier OOM "fixes" here (bounding report.add_ica's picks, then
+# passing it inst=None) made zero observed difference on the ICM cluster --
+# confirmed by the crash logs: no "Fraction of ... variance explained" line
+# ever appeared, even though that print comes from THIS block, which runs
+# before ica.save() and before any of the report/plotting code touched by
+# those attempts. The real cost is here: ica.get_explained_variance_ratio()
+# internally does inst.copy() + ica.apply(..., n_pca_components=0) (a full
+# reconstruction of the recording from all components) + two independent
+# get_data() calls, once per channel type (mag/grad) -- several more
+# full-recording-sized arrays stacked on the ~20GB already resident from
+# loading/filtering/fitting, on a 6-run-concatenated ~49min recording, is
+# what actually exceeds 32GB. This print is purely informational (never
+# used to drive fit/exclusion logic below), so compute it on a capped-size
+# copy rather than the full recording -- correctness of a diagnostic
+# variance-explained percentage doesn't need every sample, and this caps
+# the cost regardless of whether `decim` above happens to be configured.
+max_var_samples = int(raw.info['sfreq'] * 300)  # 5 minutes
+if raw.n_times > max_var_samples:
+    var_step = -(-raw.n_times // max_var_samples)  # ceiling division, no extra import
+    var_inst = raw.copy().resample(raw.info['sfreq'] / var_step, npad='auto', verbose=False)
+else:
+    var_inst = raw
+explained_var_ratio = ica.get_explained_variance_ratio(var_inst)
+del var_inst
 for channel_type, ratio in explained_var_ratio.items():
     msg = f'Fraction of {channel_type} variance explained by all components: {ratio:.4f}'
     print(msg)
