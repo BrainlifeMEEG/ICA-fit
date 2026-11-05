@@ -12,6 +12,8 @@ Inputs:
     - l_freq/h_freq: Optional bandpass filtering parameters
     - decim: Optional decimation factor for fitting speed only (every Nth
       sample used to fit; saved/plotted data is unaffected)
+    - picks: Optional channel selection for fitting ('meg', 'mag', 'grad' or
+      'eeg'); empty means all data channels (MEG + EEG)
     - picks_to_plot: Number of components to show detailed plots for
     - eog_ch: EOG channel name/index for artifact detection
     - ecg_ch: ECG channel name/index for artifact detection
@@ -78,7 +80,7 @@ if config.get('l_freq') is not None and config.get('h_freq') is not None:
 # == SET UP ICA ==
 n_components = config.get('n_components', 20)
 # n_components is legitimately a float in MNE's own API (a fraction of
-# explained variance to keep, e.g. 0.999 -- the Wakeman & Henson value),
+# explained variance to keep, e.g. 0.999),
 # not just a component count. Forcing int() truncated any such fraction to
 # 0 (int(0.999) == 0), which then made ICA.fit() select zero components and
 # crash with "Found array with 0 feature(s)" -- only cast to int when the
@@ -124,13 +126,30 @@ ica = ICA(**ica_params, verbose='INFO')
 decim = config.get('decim')
 if decim is not None:
     decim = int(decim)
+# picks: restrict the channels the ICA is fit on (ica.fit's own picks kwarg).
+# Empty/unset keeps MNE's default, every data channel (MEG + EEG) not marked
+# bad. Restricting the fit to one channel type (e.g. 'meg') keeps channels of
+# the other types, which may contain unmarked bad channels, from taking
+# components.
+valid_picks = ('meg', 'mag', 'grad', 'eeg')
+picks = config.get('picks')
+if picks is None or str(picks).strip() in ('', 'None'):
+    picks = None
+else:
+    picks = str(picks).strip().lower()
+    if picks not in valid_picks:
+        raise ValueError(f'Invalid picks "{config["picks"]}": must be empty or one of {valid_picks}')
 print(f'[{datetime.datetime.now().isoformat()}] Starting ICA fit '
       f'({ica_params["method"]}, n_components={ica_params["n_components"]}, '
-      f'decim={decim}) on {len(raw.ch_names)} channels, {raw.n_times} samples...',
+      f'decim={decim}, picks={picks or "all data channels"}) on {len(raw.ch_names)} '
+      f'channels in the file, {raw.n_times} samples...',
       flush=True)
-ica.fit(raw, decim=decim)
+ica.fit(raw, picks=picks, decim=decim)
 print(f'[{datetime.datetime.now().isoformat()}] ICA fit done, '
-      f'{ica.n_components_} components', flush=True)
+      f'{ica.n_components_} components on {len(ica.ch_names)} channels', flush=True)
+add_info_to_product(product_items,
+                    f'ICA fitted on {len(ica.ch_names)} channels '
+                    f'(picks: {picks or "all data channels"})')
 
 # == PRINT EXPLAINED VARIANCE ==
 # The two earlier OOM "fixes" here (bounding report.add_ica's picks, then

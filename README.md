@@ -42,6 +42,7 @@ The app generates:
 | `picks_to_plot` | number | `5` | Number of components to generate detailed property plots for. `None`/unset defaults to the first 5 fitted components. |
 | `fit_params` | string | `None` | Additional parameters passed to the ICA estimator (`FastICA`, `picard()`, `infomax()`), as a dict. |
 | `decim` | number | `None` | Decimation factor applied only during fitting (`ica.fit(raw, decim=N)`): every Nth sample is used to fit, while the saved ICA solution and all other data are unaffected. `None` (default) means no decimation. |
+| `picks` | string | `""` | Channels the ICA is fit on (`ica.fit(raw, picks=...)`): `meg`, `mag`, `grad` or `eeg`. Empty/unset keeps MNE's default, every data channel (MEG + EEG) not marked bad. Restricting the fit to one channel type keeps channels of the other types, which may contain unmarked bad channels, from taking components. Any other value is an error. |
 
 ## Usage
 
