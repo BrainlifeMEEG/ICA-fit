@@ -1,5 +1,61 @@
 # ICA Fitting Report
 
+<!-- brainlife-app:begin (generated from the App manifest; edit the manifest, not this block) -->
+
+> **Fits an ICA decomposition to raw MEG/EEG data with MNE-Python, with optional pre-filtering, and outputs the ICA solution, component plots and an HTML QC report with EOG/ECG scores.**
+
+Fits mne.preprocessing.ICA (fastica, picard or infomax) on the raw data, high/low-pass filtering a copy first when l_freq and h_freq are set, and plots component topographies and properties. When eog_ch/ecg_ch are given, the report shows which components correlate with EOG/ECG artifacts, but no component is removed. Use it before an ICA-apply App to remove ocular or cardiac artifacts.
+
+| | |
+|---|---|
+| 📥 **Inputs** | `neuro/meeg/mne/raw` |
+| 📤 **Outputs** | `neuro/meeg/mne/ica` · `generic/image/png` · `report/html` |
+| 🐳 **Container** | `brainlifemeeg/mne:1.12.1` |
+| ⚙️ **Resources** | 4 CPUs · 32 GB memory |
+| 🔗 **Run it** | [doi.org/10.25663/brainlife.app.675](https://doi.org/10.25663/brainlife.app.675) |
+
+#### 📥 Inputs
+
+| Input | Datatype | Required | Description |
+|---|---|---|---|
+| `fif` | `neuro/meeg/mne/raw` | yes | Continuous MEG/EEG data in MNE raw .fif format. |
+
+#### 📤 Outputs
+
+| Output | Datatype | Description |
+|---|---|---|
+| `out_dir` | `neuro/meeg/mne/ica` | Fitted ICA decomposition (ica.fif). |
+| `out_figs` | `generic/image/png` | Topographic plot of the first ICA components and property plots of selected components (PNG). |
+| `out_report` | `report/html` | HTML QC report with the ICA decomposition, component properties and EOG/ECG scores. |
+
+<details>
+<summary><b>⚙️ Parameters</b> (14)</summary>
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `n_components` | number |  | Number of principal components (from the pre-whitening PCA step) that are passed to the ICA algorithm during fitting. |
+| `l_freq` | number |  | Low frequency cut-off for (recommended) high-pass filtering before ICA. default is None (no high-pass filtering), but it is advisable to high-pass filter the data for best ICA decomposition. Notice: the filtered data is not saved. You have to use the filtering app if you want to use filtered data subsequently. |
+| `h_freq` | number |  | High frequency cut-off for low-pass filtering before ICA. default is None (no low-pass filtering). Notice: the filtered data is not saved. You have to use the filtering app if you want to use filtered data subsequently. |
+| `method` | string | `fastica` | The ICA method to use in the fit method. Use the fit_params argument to set additional parameters. Specifically, if you want Extended Infomax, set method='infomax' and fit_params=dict(extended=True) (this also works for method='picard'). Defaults to 'fastica'. |
+| `noise_cov` | string |  | Noise covariance used for pre-whitening. If None (default), channels are scaled to unit variance (“z-standardized”) as a group by channel type prior to the whitening by PCA. |
+| `random_state` | number |  | A seed for the NumPy random number generator (RNG). If None (default), the seed will be obtained from the operating system (see RandomState for details), meaning it will most likely produce different output every time this function or method is run. To achieve reproducible results, pass a value here to explicitly initialize the RNG with a defined state. |
+| `max_iter` | string | `auto` | Maximum number of iterations during fit. If 'auto', it will set maximum iterations to 1000 for 'fastica' and to 500 for 'infomax' or 'picard'. The actual number of iterations it took ICA.fit() to complete will be stored in the n_iter_ attribute. |
+| `allow_ref_meg` | boolean | `false` | Allow ICA on MEG reference channels. Defaults to False. |
+| `eog_ch` | string |  | EOG channel to be used to detect EOG events, create epochs and overlay with the same epochs after rejecting ICA components highly correlated with the channel. If no channel is provided, MNE will try to guess, and issue an error if no EOG channel is found. |
+| `ecg_ch` | string |  | ECG channel to be used to detect ECG events, create epochs and overlay with the same epochs after rejecting ICA components highly correlated with the channel. If no channel is provided, MNE will try to guess, and issue an error if no ECG channel is found. |
+| `picks_to_plot` | string |  | Indices of the independent components (ICs) to visualize. If an integer, represents the index of the IC to pick. Multiple ICs can be selected using a list of int or a slice. The indices are 0-indexed, so picks=1 will pick the second IC: ICA001. None will pick the first 5 components. |
+| `fit_params` | string |  | Additional parameters passed to the ICA estimator as specified by method. Allowed entries are determined by the various algorithm implementations: see FastICA, picard(), infomax(). |
+| `decim` | number |  | Decimation factor applied only during ICA fitting (ica.fit(raw, decim=N) -- every Nth sample is used to fit, full-resolution data is unaffected everywhere else). Speeds up fitting substantially with little accuracy cost, since ICA components are spatial patterns, not fine temporal detail. If None (default), no decimation. |
+| `picks` | string |  | Channels the ICA is fit on: 'meg', 'mag', 'grad' or 'eeg'. If empty (default), every data channel (MEG + EEG) not marked bad is used. Restricting the fit to one channel type keeps channels of the other types, which may contain unmarked bad channels, from taking components. |
+
+</details>
+
+📚 **References used by this App:**
+- Hayashi S, Caron BA, Heinsfeld AS, et al. brainlife.io: a decentralized and open-source cloud platform to support neuroscience research. Nat Methods 21:809-813 (2024). [doi:10.1038/s41592-024-02237-2](https://doi.org/10.1038/s41592-024-02237-2)
+- Gramfort A, et al. MEG and EEG data analysis with MNE-Python. Front Neurosci 7:267 (2013). [doi:10.3389/fnins.2013.00267](https://doi.org/10.3389/fnins.2013.00267)
+
+<!-- brainlife-app:end -->
+
 [![Run on Brainlife.io](https://img.shields.io/badge/Brainlife-bl.app.675-blue.svg)](https://doi.org/10.25663/brainlife.app.675)
 
 ## Description
